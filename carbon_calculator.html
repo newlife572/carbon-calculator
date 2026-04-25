@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人碳足迹计算器</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; color: white; margin-bottom: 30px; font-size: 2rem; }
+        .card { background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #f0f0f0; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+        input, select { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        .btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: transform 0.2s; }
+        .btn:hover { transform: scale(1.02); }
+        .result-section { text-align: center; }
+        .total { font-size: 2.5rem; font-weight: bold; color: #667eea; }
+        .total-label { color: #666; margin-bottom: 10px; }
+        .breakdown { display: flex; justify-content: space-around; margin-top: 20px; }
+        .breakdown-item { text-align: center; }
+        .breakdown-value { font-size: 1.5rem; font-weight: bold; }
+        .breakdown-label { color: #666; }
+        canvas { max-height: 300px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌱 个人碳足迹计算器</h1>
+        
+        <div class="card">
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('transport')">🚗 交通</div>
+                <div class="tab" onclick="showTab('electricity')">💡 用电</div>
+                <div class="tab" onclick="showTab('diet')">🍖 饮食</div>
+            </div>
+            
+            <div id="transport" class="tab-content">
+                <div class="form-group">
+                    <label>出行方式</label>
+                    <select id="transport-item">
+                        <option value="car">私家车 (0.21 kg/km)</option>
+                        <option value="bus">公交车 (0.089 kg/km)</option>
+                        <option value="train">火车 (0.041 kg/km)</option>
+                        <option value="plane">飞机 (0.255 kg/km)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>行驶里程 (km)</label>
+                    <input type="number" id="transport-amount" placeholder="请输入里程" value="500">
+                </div>
+                <button class="btn" onclick="addData('transport')">添加数据</button>
+            </div>
+            
+            <div id="electricity" class="tab-content hidden">
+                <div class="form-group">
+                    <label>用电来源</label>
+                    <select id="electricity-item">
+                        <option value="coal">煤炭 (0.93 kg/kWh)</option>
+                        <option value="natural_gas">天然气 (0.45 kg/kWh)</option>
+                        <option value="nuclear">核能 (0.012 kg/kWh)</option>
+                        <option value="renewable">可再生能源 (0 kg/kWh)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>用电量 (kWh)</label>
+                    <input type="number" id="electricity-amount" placeholder="请输入用电量" value="300">
+                </div>
+                <button class="btn" onclick="addData('electricity')">添加数据</button>
+            </div>
+            
+            <div id="diet" class="tab-content hidden">
+                <div class="form-group">
+                    <label>食物类型</label>
+                    <select id="diet-item">
+                        <option value="beef">牛肉 (27.0 kg/kg)</option>
+                        <option value="pork">猪肉 (12.1 kg/kg)</option>
+                        <option value="chicken">鸡肉 (6.9 kg/kg)</option>
+                        <option value="vegetarian">素食 (3.3 kg/kg)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>消耗量 (kg)</label>
+                    <input type="number" id="diet-amount" placeholder="请输入重量" value="10">
+                </div>
+                <button class="btn" onclick="addData('diet')">添加数据</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <button class="btn" onclick="calculate()" style="margin-bottom: 20px;">📊 计算碳排放</button>
+            <button class="btn" onclick="reset()" style="background: #ff6b6b; margin-bottom: 20px;">🔄 重置数据</button>
+            
+            <div class="result-section">
+                <div class="total-label">总碳排放</div>
+                <div class="total" id="total-result">0 kg CO₂</div>
+                <div class="breakdown">
+                    <div class="breakdown-item">
+                        <div class="breakdown-value" id="transport-result" style="color: #FF6B6B;">0</div>
+                        <div class="breakdown-label">交通</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-value" id="electricity-result" style="color: #4ECDC4;">0</div>
+                        <div class="breakdown-label">用电</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div class="breakdown-value" id="diet-result" style="color: #45B7D1;">0</div>
+                        <div class="breakdown-label">饮食</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+    
+    <script>
+        const EMISSION_FACTORS = {
+            transport: { car: 0.21, bus: 0.089, train: 0.041, plane: 255 },
+            electricity: { coal: 0.93, natural_gas: 0.45, nuclear: 0.012, renewable: 0 },
+            diet: { beef: 27.0, pork: 12.1, chicken: 6.9, vegetarian: 3.3 }
+        };
+        
+        let data = { transport: [], electricity: [], diet: [] };
+        let chart = null;
+        
+        function showTab(category) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.tab')[['transport', 'electricity', 'diet'].indexOf(category)].classList.add('active');
+            document.getElementById(category).classList.remove('hidden');
+        }
+        
+        function addData(category) {
+            const item = document.getElementById(category + '-item').value;
+            const amount = parseFloat(document.getElementById(category + '-amount').value);
+            if (isNaN(amount) || amount <= 0) { alert('请输入有效数值'); return; }
+            const factor = EMISSION_FACTORS[category][item];
+            data[category].push({ item, amount, factor, carbon: amount * factor });
+            alert('数据添加成功！');
+        }
+        
+        function calculate() {
+            let transport = data.transport.reduce((s, d) => s + d.carbon, 0);
+            let electricity = data.electricity.reduce((s, d) => s + d.carbon, 0);
+            let diet = data.diet.reduce((s, d) => s + d.carbon, 0);
+            let total = transport + electricity + diet;
+            
+            document.getElementById('total-result').textContent = total.toFixed(2) + ' kg CO₂';
+            document.getElementById('transport-result').textContent = transport.toFixed(1);
+            document.getElementById('electricity-result').textContent = electricity.toFixed(1);
+            document.getElementById('diet-result').textContent = diet.toFixed(1);
+            
+            updateChart([transport, electricity, diet]);
+        }
+        
+        function updateChart(values) {
+            const ctx = document.getElementById('chart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['交通', '用电', '饮食'],
+                    datasets: [{
+                        label: '碳排放 (kg CO₂)',
+                        data: values,
+                        backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+        
+        function reset() {
+            data = { transport: [], electricity: [], diet: [] };
+            document.getElementById('total-result').textContent = '0 kg CO₂';
+            document.getElementById('transport-result').textContent = '0';
+            document.getElementById('electricity-result').textContent = '0';
+            document.getElementById('diet-result').textContent = '0';
+            if (chart) { chart.destroy(); chart = null; }
+        }
+    </script>
+</body>
+</html>
